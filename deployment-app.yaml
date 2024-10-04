@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  replicas: 3  # Запускаем 3 пода для обеспечения нагрузки
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      affinity:
+        # Используем affinity для распределения подов по нодам
+        antiAffinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - my-app
+              topologyKey: "kubernetes.io/hostname"  # Запрещаем размещать поды на одной ноде
+      containers:
+      - name: my-app-container
+        image: my-app-image:latest  # Укажите ваше изображение приложения
+        resources:
+          requests:
+            cpu: "0.5"  # Запрашиваем 0.5 CPU для старта
+            memory: "128Mi"  # Запрашиваем 128 MiB памяти
+          limits:
+            cpu: "1"  # Ограничиваем до 1 CPU
+            memory: "128Mi"  # Ограничиваем до 128 MiB памяти
+        startupProbe:
+          httpGet:
+            path: /healthz  # Путь для проверки готовности
+            port: 8080  # Порт, на котором приложение отвечает
+          initialDelaySeconds: 10  # Задержка перед первой проверкой
+          periodSeconds: 5  # Частота проверки
+        readinessProbe:
+          httpGet:
+            path: /healthz  # Путь для проверки готовности
+            port: 8080  # Порт, на котором приложение отвечает
+          initialDelaySeconds: 10  # Задержка перед первой проверкой
+          periodSeconds: 5  # Частота проверки
+      # initContainer для предварительной настройки, если это необходимо
+      initContainers:
+      - name: init-myservice
+        image: my-init-image:latest  # Имя образа инициализационного контейнера
+        command: ["sh", "-c", "echo Initializing..."]  # Команда инициализации
+        resources:
+          requests:
+            cpu: "0.1"  # Запрашиваем минимальные ресурсы
+            memory: "64Mi"
